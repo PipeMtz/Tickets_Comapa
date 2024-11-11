@@ -1,13 +1,13 @@
 import express from 'express';
 import * as ticketController from '../controllers/tickets.controller.js';
 
-const router = express.Router();
+const ticketRouter = express.Router();
 
 // Middleware para validar el token
-router.use(ticketController.verifyToken);
+// ticketRouter.use(ticketController.verifyToken);
 
 // Crear un nuevo ticket
-router.post('/', async (req, res) => {
+ticketRouter.post('/', async (req, res) => {
   const { descripcion, direccion, prioridad } = req.body;
   const id_usuario = req.userId; // Obtiene el id_usuario del token
   try {
@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
 });
 
 // Obtener todos los tickets
-router.get('/', async (req, res) => {
+ticketRouter.get('/', async (req, res) => {
   try {
     const tickets = await ticketController.getAllTickets();
     res.status(200).json(tickets);
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
 });
 
 // Obtener un ticket por ID
-router.get('/:id', async (req, res) => {
+ticketRouter.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const ticket = await ticketController.getTicketById(id); // Asegúrate de implementar esta función en el controlador
@@ -43,7 +43,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Eliminar un ticket
-router.delete('/:id', async (req, res) => {
+ticketRouter.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await ticketController.deleteTicket(id);
@@ -53,4 +53,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
+export default ticketRouter;

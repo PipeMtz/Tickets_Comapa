@@ -40,14 +40,14 @@ app
   .use(express.urlencoded({ extended: true }));
 
 // Rutas
-//app.use('/api/auth', authRouter);
-//app.use(verifyToken);
-app.use('/api/users', usersRouter);
-app.use('/api/tickets', ticketsRouter);
+// app.use('/api/auth', authRouter);
+// //app.use(verifyToken);
+// app.use('/api/users', usersRouter);
+// app.use('/api/tickets', ticketsRouter);
 
-app.use('/api/departamentos', departamentosRouter);
-app.use('/api/asignaciones', ticketAsignacionesRouter);
-app.use('/api/actualizaciones', actualizacionesTicketRouter);
+// app.use('/api/departamentos', departamentosRouter);
+// app.use('/api/asignaciones', ticketAsignacionesRouter);
+// app.use('/api/actualizaciones', actualizacionesTicketRouter);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
