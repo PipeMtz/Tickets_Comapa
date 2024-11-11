@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const secretKey = process.env.SECRET_KEY;
+export const secretKey = process.env.SECRET_KEY;
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -17,6 +17,7 @@ const pool = mysql.createPool({
 // Verificar la conexión a la base de datos
 const testConnection = async () => {
   try {
+    console.log(secretKey)
     const connection = await pool.getConnection(); // Obtener una conexión del pool
     console.log('Conexión a la base de datos establecida exitosamente.');
     connection.release(); // Libera la conexión de vuelta al pool

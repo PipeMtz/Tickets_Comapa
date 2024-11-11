@@ -4,7 +4,8 @@ import * as userController from '../controllers/users.controller.js'; // Importa
 import pool from '../../config/db.config.js'; // Importa el pool de conexiones
 import config from '../../config/db.config.js'; // Asegúrate de tener tu llave secreta en tu configuración
 
-const { secretKey } = config;
+// const { secretKey } = config;
+const secretKey = process.env.SECRET_KEY;
 
 // Registro de un nuevo usuario
 export const register = async (req, res) => {
