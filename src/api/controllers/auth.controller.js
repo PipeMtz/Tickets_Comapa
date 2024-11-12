@@ -9,7 +9,7 @@ const secretKey = process.env.SECRET_KEY;
 
 // Registro de un nuevo usuario
 export const register = async (req, res) => {
-  const { nombre, email, contrasena, role } = req.body; // Cambié 'name' a 'nombre' para que coincida con el modelo
+  const { nombre, email, contrasena, role = 'user' } = req.body; // Cambié 'name' a 'nombre' para que coincida con el modelo
 
   try {
     // Verificar si el usuario ya existe
@@ -32,7 +32,7 @@ export const register = async (req, res) => {
     await pool.execute('INSERT INTO usuario_roles (id_usuario, id_rol) VALUES (?, ?)', [newUser.id_usuario, roleData[0].id_rol]);
 
     const token = jwt.sign({ id_usuario: newUser.id_usuario, role: roleData[0].nombre_rol }, secretKey, { expiresIn: '1h' });
-
+    console.log(token);
     res.status(201).json({ message: 'Usuario creado con éxito', token });
   } catch (error) {
     res.status(500).json({ error: error.message });

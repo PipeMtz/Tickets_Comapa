@@ -4,7 +4,9 @@ import { getAllUsers, getUserById, updateUser, deleteUser, createUser } from '..
 
 // Ruta para crear un nuevo usuario y asignarle un rol
 usersRouter.post('/', async (req, res) => {
-  const { nombre, email, contrasena, role } = req.body;
+  const { nombre, email, contrasena} = req.body;
+  const role = 'user';
+  console.log('Datos recibidos para crear el usuario:', { nombre, email, contrasena, role });
   try {
     const newUser = await createUser(nombre, email, contrasena, role);
     res.status(201).json({ message: 'Usuario creado con éxito', newUser });
