@@ -1,6 +1,9 @@
 import express from 'express';
 import * as ticketController from '../controllers/tickets.controller.js';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const ticketRouter = express.Router();
 
 // Middleware para validar el token
@@ -9,14 +12,32 @@ const ticketRouter = express.Router();
 // Crear un nuevo ticket
 ticketRouter.post('/', async (req, res) => {
   const { descripcion, direccion, prioridad } = req.body;
-  const id_usuario = req.userId; // Obtiene el id_usuario del token
+  const token = req.headers.authorization?.split(' ')[1]; // Obtener el token del encabezado
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token no proporcionado' });
+  }
+
   try {
+    // Decodificar el token y obtener los datos del usuario
+    const decoded = jwt.verify(token, process.env.SECRET_KEY); // Asegúrate de usar la misma clave secreta que utilizaste al firmar el token
+
+    const id_usuario = decoded.id_usuario; // Extraer el id_usuario desde el token
+    console.log('ID de usuario extraído del token:', id_usuario);
+
+    if (!id_usuario) {
+      return res.status(400).json({ error: 'ID de usuario no encontrado en el token' });
+    }
+
+    // Ahora puedes utilizar id_usuario para crear el ticket
     const newTicket = await ticketController.createTicket(id_usuario, descripcion, direccion, prioridad);
     res.status(201).json({ message: 'Ticket creado con éxito', ticket: newTicket });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+
 
 // Obtener todos los tickets
 ticketRouter.get('/', async (req, res) => {
