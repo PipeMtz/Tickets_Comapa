@@ -7,10 +7,10 @@ import config from '../../config/db.config.js'; // Asegúrate de tener tu llave 
 // const { secretKey } = config;
 const secretKey = process.env.SECRET_KEY;
 
-// Registro de un nuevo usuario
+//Registro del usuario
 export const register = async (req, res) => {
-  const { nombre, email, contrasena, role = 'user' } = req.body; // Cambié 'name' a 'nombre' para que coincida con el modelo
-
+  const { nombre, email, contrasena, role } = req.body;
+  console.log(req.body);
   try {
     // Verificar si el usuario ya existe
     const existingUser = await userController.getUserByEmail(email);
@@ -18,26 +18,19 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: 'El email ya está en uso' });
     }
 
-    const hashedPassword = await bcrypt.hash(contrasena, 10); // Usa 'contrasena' en lugar de 'password'
+    const hashedPassword = await bcrypt.hash(contrasena, 10);
 
-    const newUser = await userController.createUser(nombre, email, hashedPassword); // Usa la función del controlador
+    // Ahora pasa el 'role' a createUser
+    const newUser = await userController.createUser(nombre, email, hashedPassword, role);
 
-    // Obtener el rol
-    const [roleData] = await pool.execute('SELECT * FROM roles WHERE nombre_rol = ?', [role]);
-    if (!roleData.length) {
-      return res.status(400).json({ message: 'El rol especificado no existe' });
-    }
-
-    // Asignar el rol al usuario
-    await pool.execute('INSERT INTO usuario_roles (id_usuario, id_rol) VALUES (?, ?)', [newUser.id_usuario, roleData[0].id_rol]);
-
-    const token = jwt.sign({ id_usuario: newUser.id_usuario, role: roleData[0].nombre_rol }, secretKey, { expiresIn: '1h' });
+    const token = jwt.sign({ id_usuario: newUser.id_usuario, role: newUser.role }, secretKey, { expiresIn: '1h' });
     console.log(token);
     res.status(201).json({ message: 'Usuario creado con éxito', token });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Login del usuario
 export const login = async (req, res) => {

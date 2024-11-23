@@ -10,7 +10,11 @@ import { verifyToken } from './src/middleware/verifyToken.js';
 import departamentosRouter from './src/api/routes/departamentos.routes.js';
 import ticketAsignacionesRouter from './src/api/routes/ticketAsignaciones.routes.js';
 import actualizacionesTicketRouter from './src/api/routes/actualizacionesTicket.routes.js';
-
+import rolesRouter from './src/api/routes/roles.routes.js';
+import fileRouter from './src/api/routes/archivos.routes.js';
+import bodyParser from 'body-parser';
+import tipoRouter from './src/api/routes/tipos.routes.js';
+import ticketAsigRouter from './src/api/routes/ticketAsignaciones.routes.js';
 // import ticketsRouter from './src/api/routes/tickets.routes.js';
 
 dotenv.config();
@@ -37,6 +41,7 @@ app
   .disable('x-powered-by')
   .use(cors())
   .use(express.json())
+  .use(bodyParser.json())
   .use(express.urlencoded({ extended: true }));
 
 // Rutas
@@ -46,7 +51,10 @@ app.use('/api/users', usersRouter, verifyToken);
 app.use('/api/tickets', ticketsRouter, verifyToken);
 
 app.use('/api/departamentos', departamentosRouter, verifyToken);
-app.use('/api/asignaciones', ticketAsignacionesRouter,verifyToken);
+app.use('/api/roles', rolesRouter, verifyToken);
+app.use('/api/tipos', tipoRouter, verifyToken);
+app.use('/api/archivos', fileRouter, verifyToken);
+app.use('/api/asignaciones', ticketAsigRouter,verifyToken);
 app.use('/api/actualizaciones', actualizacionesTicketRouter, verifyToken);
 
 // Iniciar el servidor

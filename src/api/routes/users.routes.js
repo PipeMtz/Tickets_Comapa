@@ -1,6 +1,6 @@
 import express from 'express';
 const usersRouter = express.Router();
-import { getAllUsers, getUserById, updateUser, deleteUser, createUser } from '../controllers/users.controller.js';
+import { getAllUsers, getUserById, updateUser, deleteUser, createUser, getAllUsersWithDetails, updateUserAdmin } from '../controllers/users.controller.js';
 
 // Ruta para crear un nuevo usuario y asignarle un rol
 usersRouter.post('/', async (req, res) => {
@@ -19,6 +19,16 @@ usersRouter.post('/', async (req, res) => {
 usersRouter.get('/', async (req, res) => {
   try {
     const users = await getAllUsers();
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Ruta para obtener todos los usuarios con roles y departamentos
+usersRouter.get('/detalles', async (req, res) => {
+  try {
+    const users = await getAllUsersWithDetails();
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -61,5 +71,20 @@ usersRouter.delete('/:id', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+// Ruta para actualizar el departamento y rol de un usuario
+usersRouter.put('/:id/actualizar', async (req, res) => {
+  const { id } = req.params;
+  const { nuevoDepartamento, nuevoRol } = req.body;
+
+  try {
+    const updatedUser = await updateUserAdmin(id, nuevoDepartamento, nuevoRol);
+    res.status(200).json({ message: 'Usuario actualizado con éxito', updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
+
 
 export default usersRouter;

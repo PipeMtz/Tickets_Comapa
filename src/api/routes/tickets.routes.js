@@ -11,7 +11,10 @@ const ticketRouter = express.Router();
 
 // Crear un nuevo ticket
 ticketRouter.post('/', async (req, res) => {
-  const { descripcion, direccion, prioridad } = req.body;
+  console.log('Creando un nuevo ticket...');
+  console.log('Datos recibidos:', req.body);
+
+  const { descripcion, direccion, asunto } = req.body; // 'asunto' se espera como id_tipo
   const token = req.headers.authorization?.split(' ')[1]; // Obtener el token del encabezado
 
   if (!token) {
@@ -20,22 +23,30 @@ ticketRouter.post('/', async (req, res) => {
 
   try {
     // Decodificar el token y obtener los datos del usuario
-    const decoded = jwt.verify(token, process.env.SECRET_KEY); // Asegúrate de usar la misma clave secreta que utilizaste al firmar el token
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    console.log('Token decodificado:', decoded);
 
-    const id_usuario = decoded.id_usuario; // Extraer el id_usuario desde el token
-    console.log('ID de usuario extraído del token:', id_usuario);
-
+    const id_usuario = decoded.id_usuario;
     if (!id_usuario) {
       return res.status(400).json({ error: 'ID de usuario no encontrado en el token' });
     }
 
-    // Ahora puedes utilizar id_usuario para crear el ticket
-    const newTicket = await ticketController.createTicket(id_usuario, descripcion, direccion, prioridad);
+    // Validar que el id_tipo (asunto) exista en la tabla tipos
+    // const [rows] = await pool.execute('SELECT id_tipo FROM tipos WHERE id_tipo = ?', [asunto]);
+    // if (rows.length === 0) {
+    //   return res.status(400).json({ error: 'El asunto proporcionado no es válido' });
+    // }
+
+    // Crear el ticket
+    const newTicket = await ticketController.createTicket(id_usuario, descripcion, direccion, asunto);
     res.status(201).json({ message: 'Ticket creado con éxito', ticket: newTicket });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al procesar la solicitud:', error.message);
+    res.status(500).json({ error: 'Error al procesar la solicitud' });
   }
 });
+
+
 
 
 
@@ -44,6 +55,16 @@ ticketRouter.get('/', async (req, res) => {
   try {
     const tickets = await ticketController.getAllTickets();
     res.status(200).json(tickets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Exportar tickets a Excel
+ticketRouter.get('/export', async (req, res) => {
+  const filters = req.query;
+  try {
+    await ticketController.exportTicketsToExcel(filters, res);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -71,6 +92,19 @@ ticketRouter.delete('/:id', async (req, res) => {
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Ruta para actualizar un ticket
+ticketRouter.put('/tickets/:id_ticket', async (req, res) => {
+  const { id_ticket } = req.params;
+  const { titulo, descripcion, prioridad } = req.body;
+
+  try {
+    const result = await updateTicket(id_ticket, { titulo, descripcion, prioridad });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

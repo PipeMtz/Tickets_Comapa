@@ -7,18 +7,23 @@ export const createUser = async (nombre, email, contrasena, role) => {
 
   try {
     const [result] = await pool.execute(query, values);
-    // Asigna el rol al usuario recién creado
+
+    // Asegúrate de que el rol existe
     const [roleData] = await pool.execute('SELECT * FROM roles WHERE nombre_rol = ?', [role]);
     if (!roleData.length) {
       throw new Error('El rol especificado no existe');
     }
+
+    // Asignar el rol al usuario recién creado
     await pool.execute('INSERT INTO usuario_roles (id_usuario, id_rol) VALUES (?, ?)', [result.insertId, roleData[0].id_rol]);
 
-    return { id_usuario: result.insertId, nombre, email, contrasena }; // Devuelve el nuevo usuario
+    // Retornar usuario y rol asignado
+    return { id_usuario: result.insertId, nombre, email, contrasena, role: roleData[0].nombre_rol };
   } catch (err) {
     throw new Error('Error al crear el usuario: ' + err.message);
   }
 };
+
 
 
 // Función para obtener un usuario por ID
@@ -76,5 +81,51 @@ export const deleteUser = async (id_usuario) => {
     return { message: 'Usuario eliminado exitosamente.' }; // Mensaje de éxito
   } catch (err) {
     throw new Error('Error al eliminar el usuario: ' + err.message);
+  }
+};
+
+// Función para obtener todos los usuarios con sus roles y departamentos
+export const getAllUsersWithDetails = async () => {
+  const query = `
+    SELECT 
+      u.id_usuario,
+      u.nombre AS nombre_usuario,
+      u.email,
+      u.telefono,
+      d.nombre_departamento,
+      GROUP_CONCAT(r.nombre_rol SEPARATOR ', ') AS roles,
+      u.fecha_registro
+    FROM usuarios u
+    LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
+    LEFT JOIN usuario_roles ur ON u.id_usuario = ur.id_usuario
+    LEFT JOIN roles r ON ur.id_rol = r.id_rol
+    GROUP BY u.id_usuario
+  `;
+  try {
+    const [rows] = await pool.execute(query);
+    return rows; // Devuelve los usuarios con sus detalles
+  } catch (err) {
+    throw new Error('Error al obtener los usuarios con detalles: ' + err.message);
+  }
+};
+
+// Función para actualizar el departamento y rol de un usuario
+export const updateUserAdmin = async (id_usuario, nuevoDepartamento, nuevoRol) => {
+  const query = `
+    UPDATE usuarios
+    SET id_departamento = (SELECT id_departamento FROM departamentos WHERE nombre_departamento = ?),
+        id_rol = (SELECT id_rol FROM roles WHERE nombre_rol = ?)
+    WHERE id_usuario = ?
+  `;
+  const values = [nuevoDepartamento, nuevoRol, id_usuario];
+
+  try {
+    const [result] = await pool.execute(query, values);
+    if (result.affectedRows === 0) {
+      throw new Error('No se encontró el usuario o los datos proporcionados son inválidos');
+    }
+    return { id_usuario, nuevoDepartamento, nuevoRol };
+  } catch (err) {
+    throw new Error('Error al actualizar el usuario: ' + err.message);
   }
 };
