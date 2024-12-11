@@ -32,19 +32,23 @@ export const createTicket = async (id_usuario, descripcion, direccion, asunto) =
 // Obtener todos los tickets
 export const getAllTickets = async () => {
   const query = `SELECT 
-                    t.id_ticket,
-                    u.nombre,
-                    t.descripcion,
-                    t.direccion,
-                    t.prioridad,
-                    t.estado,
-                    d.nombre_departamento,
-                    t.fecha_creacion,
-                    ti.nombre AS tipo
-                FROM tickets t
-                LEFT JOIN usuarios u ON t.id_usuario = u.id_usuario
-                LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
-                LEFT JOIN tipos ti ON t.id_tipo = ti.id_tipo;`;
+    t.id_ticket,
+    u.nombre,
+    t.descripcion,
+    t.direccion,
+    ua.nombre as nombre_asignado,
+    t.prioridad,
+    t.estado,
+    da.nombre_departamento,
+    t.fecha_creacion,
+    ti.nombre AS tipo
+FROM tickets t
+LEFT JOIN usuarios u ON t.id_usuario = u.id_usuario
+left join usuarios ua on t.id_usuario_asignado = ua.id_usuario
+LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
+Left join departamentos da on ua.id_departamento = da.id_departamento
+LEFT JOIN tipos ti ON t.id_tipo = ti.id_tipo
+order by fecha_creacion desc;`;
   try {
     const [rows] = await pool.execute(query);
     return rows; 
@@ -64,18 +68,66 @@ export const getTicketById = async (id_ticket) => {
   }
 };
 
+// Obtener tickets por usuario
+export const getTicketsByUser = async (user) => {
+  console.log(user);
+  const query = `
+                SELECT 
+                  t.id_ticket,
+                  u.nombre,
+                  t.descripcion,
+                  t.direccion,
+                  t.estado,
+                  t.fecha_creacion,
+                  ti.nombre AS tipo
+              FROM tickets t
+              LEFT JOIN usuarios u ON t.id_usuario = u.id_usuario
+              left join usuarios ua on t.id_usuario_asignado = ua.id_usuario
+              LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
+              Left join departamentos da on ua.id_departamento = da.id_departamento
+              LEFT JOIN tipos ti ON t.id_tipo = ti.id_tipo
+              where t.id_usuario = ?
+              order by fecha_creacion desc;
+  `;
+  try {
+    const [rows] = await pool.execute(query, [user]);
+    return rows; // Devuelve los tickets encontrados
+  } catch (err) {
+    throw new Error('Error al obtener los tickets: ' + err.message);
+  }
+};
+
 // Actualizar un ticket
-export const updateTicket = async (id_ticket, descripcion, estado) => {
-  const query = `UPDATE tickets SET descripcion = ?, estado = ? WHERE id_ticket = ?`;
-  const values = [descripcion, estado, id_ticket];
+export const updateTicket = async (id_ticket, prioridad, estado, id_usuario_asignado) => {
+  const query = `
+    UPDATE tickets
+    SET prioridad = ?, estado = ?, id_usuario_asignado = ?
+    WHERE id_ticket = ?
+  `;
+  const values = [prioridad, estado, id_usuario_asignado, id_ticket];
 
   try {
     await pool.execute(query, values);
-    return { id_ticket, descripcion, estado }; // Devuelve el ticket actualizado
+    return { id_ticket, prioridad, estado, id_usuario_asignado }; // Devuelve los datos actualizados
   } catch (err) {
     throw new Error('Error al actualizar el ticket: ' + err.message);
   }
 };
+
+// Obtener attachments por ticket id
+export const getAttachmentsByTicketId = async (id_ticket) => {
+  const query = `SELECT * FROM archivos WHERE id_ticket = ?`;
+  try {
+    const [rows] = await pool.execute(query, [id_ticket]);
+    console.log('Attachments obtenidos:', rows);
+    return rows;
+  } catch (err) {
+    throw new Error('Error al obtener los attachments: ' + err.message);
+  }
+};
+
+
+
 
 // Eliminar un ticket
 export const deleteTicket = async (id_ticket) => {
@@ -89,9 +141,52 @@ export const deleteTicket = async (id_ticket) => {
   }
 };
 
-// Función para exportar tickets a Excel con filtros
-export const exportTicketsToExcel = async (filters, res) => {
-  // Filtros del frontend (pueden ser vacíos o tener un valor)
+export const exportTicketsToExcel = async (req, res) => {
+  console.log('Body recibido:', req.body); // Depuración
+  try {
+    const tickets = req.body;
+
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      return res.status(400).json({ error: 'No se proporcionaron tickets válidos.' });
+    }
+
+    console.log('Tickets procesados:', tickets);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Tickets');
+
+    worksheet.columns = [
+      { header: 'ID Ticket', key: 'id_ticket' },
+      { header: 'Usuario', key: 'nombre' },
+      { header: 'Descripción', key: 'descripcion' },
+      { header: 'Dirección', key: 'direccion' },
+      { header: 'Prioridad', key: 'prioridad' },
+      { header: 'Estado', key: 'estado' },
+      { header: 'Departamento', key: 'nombre_departamento' },
+      { header: 'Asignado a', key: 'nombre_asignado' },  // Aquí agregamos la columna "Asignado a"
+      { header: 'Fecha Creación', key: 'fecha_creacion' },
+    ];
+
+    tickets.forEach((ticket) => worksheet.addRow(ticket));
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename=tickets.xlsx');
+
+    await workbook.xlsx.write(res);
+    res.status(200).end();
+  } catch (error) {
+    console.error('Error generando el archivo Excel:', error);
+    res.status(500).json({ error: 'Error generando el archivo Excel' });
+  }
+};
+
+
+
+
+export const getFilteredTickets = async (filters) => {
   const {
     departamento = 'Todo',
     tipoProblema = 'Todo',
@@ -101,76 +196,53 @@ export const exportTicketsToExcel = async (filters, res) => {
     estado = 'Todo'
   } = filters;
 
-  // Iniciar la construcción del query
+  // Base de la consulta
   let query = `
-    SELECT t.id_ticket, u.nombre AS usuario, t.descripcion, t.direccion, t.prioridad, t.estado, 
-           d.nombre_departamento, t.fecha_creacion
+    SELECT 
+        t.id_ticket,
+        u.nombre AS nombre,
+        t.descripcion,
+        t.direccion,
+        ua.nombre AS nombre_asignado,
+        t.prioridad,
+        t.estado,
+        da.nombre_departamento,
+        t.fecha_creacion,
+        ti.nombre AS tipo
     FROM tickets t
     LEFT JOIN usuarios u ON t.id_usuario = u.id_usuario
+    LEFT JOIN usuarios ua ON t.id_usuario_asignado = ua.id_usuario
     LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
-    WHERE 1=1`; 
+    LEFT JOIN departamentos da ON ua.id_departamento = da.id_departamento
+    LEFT JOIN tipos ti ON t.id_tipo = ti.id_tipo
+    WHERE 1=1
+  `;
 
-  // Agregar filtros dinámicamente
+  const values = [];
+
+  // Agregar filtros dinámicos
   if (departamento !== 'Todo') {
-    query += ` AND d.nombre_departamento = ?`;
+    query += ' AND da.nombre_departamento = ?';
+    values.push(departamento);
   }
   if (tipoProblema !== 'Todo') {
-    query += ` AND t.tipo = ?`; // Suponiendo que 'tipo' es la columna para el tipo de problema
+    query += ' AND ti.nombre = ?';
+    values.push(tipoProblema);
   }
-  if (fechaInicio) {
-    query += ` AND t.fecha_creacion >= ?`;
-  }
-  if (fechaFin) {
-    query += ` AND t.fecha_creacion <= ?`;
+  if (fechaInicio && fechaFin) {
+    query += ' AND t.fecha_creacion BETWEEN ? AND ?';
+    values.push(fechaInicio, fechaFin);
   }
   if (prioridad !== 'Todo') {
-    query += ` AND t.prioridad = ?`;
+    query += ' AND t.prioridad = ?';
+    values.push(prioridad);
   }
   if (estado !== 'Todo') {
-    query += ` AND t.estado = ?`;
+    query += ' AND t.estado = ?';
+    values.push(estado);
   }
 
-  try {
-    // Preparar los valores para los filtros
-    const values = [];
-    if (departamento !== 'Todo') values.push(departamento);
-    if (tipoProblema !== 'Todo') values.push(tipoProblema);
-    if (fechaInicio) values.push(fechaInicio);
-    if (fechaFin) values.push(fechaFin);
-    if (prioridad !== 'Todo') values.push(prioridad);
-    if (estado !== 'Todo') values.push(estado);
-
-    // Ejecutar el query con los valores de filtro
-    const [rows] = await pool.execute(query, values);
-
-    // Crear el archivo Excel
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Tickets');
-
-    // Definir las columnas para el Excel
-    worksheet.columns = [
-      { header: 'ID Ticket', key: 'id_ticket' },
-      { header: 'Usuario', key: 'usuario' },
-      { header: 'Descripción', key: 'descripcion' },
-      { header: 'Dirección', key: 'direccion' },
-      { header: 'Prioridad', key: 'prioridad' },
-      { header: 'Estado', key: 'estado' },
-      { header: 'Departamento', key: 'nombre_departamento' },
-      { header: 'Fecha Creación', key: 'fecha_creacion' },
-    ];
-
-    // Agregar las filas al Excel
-    rows.forEach((row) => worksheet.addRow(row));
-
-    // Configurar los encabezados para la descarga del archivo
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=tickets.xlsx');
-
-    // Escribir el archivo y devolverlo al cliente
-    await workbook.xlsx.write(res);
-    res.status(200).end();
-  } catch (error) {
-    console.error('Error generando el archivo Excel:', error);
-    res.status(500).json({ error: 'Error generando el archivo Excel' });
-  }
+  // Ejecutar la consulta
+  const [rows] = await pool.execute(query, values);
+  return rows;
 };

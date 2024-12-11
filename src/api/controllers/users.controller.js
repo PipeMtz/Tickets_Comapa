@@ -47,6 +47,22 @@ export const getAllUsers = async () => {
   }
 };
 
+export const getTicketsAbiertosUser = async () => {
+  const query = `SELECT 
+  usuarios.nombre AS usuario, 
+  COUNT(tickets.id_ticket) AS ticketsAbiertos
+FROM usuarios
+JOIN tickets ON usuarios.id_usuario = tickets.id_usuario_asignado
+WHERE tickets.estado = 'Abierto'
+GROUP BY usuarios.nombre;`;
+  try {
+    const [rows] = await pool.execute(query);
+    return rows; // Devuelve todos los usuarios encontrados
+  } catch (err) {
+    throw new Error('Error al obtener los usuarios: ' + err.message); // Actualiza el mensaje de error
+  }
+};
+
 
 // Función para obtener un usuario por email
 export const getUserByEmail = async (email) => {

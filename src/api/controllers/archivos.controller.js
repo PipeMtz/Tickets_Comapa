@@ -1,21 +1,27 @@
 import pool from '../../config/db.config.js';  // Importar el pool de conexiones
+import multer from 'multer';
+
+
 
 // Función para subir un archivo
 export const subirArchivo = async (req, res) => {
-  const { id_ticket, nombre, tipo, base64 } = req.body;
+  const { id_ticket, nombre, tipo } = req.body;
+  const archivo = req.file; // Archivo subido por multer
 
-  // Validar si se recibieron los datos correctos
-  if (!id_ticket || !nombre || !tipo || !base64) {
+  if (!id_ticket || !nombre || !tipo || !archivo) {
     return res.status(400).json({ message: 'Faltan datos requeridos' });
   }
 
   try {
-    // Insertar archivo en la base de datos utilizando el pool
+    // Convertir archivo binario a base64
+    const base64 = archivo.buffer.toString('base64');
+
+    // Insertar en la base de datos
     const [result] = await pool.execute(
       'INSERT INTO archivos (id_ticket, nombre, tipo, base64) VALUES (?, ?, ?, ?)',
       [id_ticket, nombre, tipo, base64]
     );
-    
+
     res.status(200).json({ message: 'Archivo subido con éxito', archivoId: result.insertId });
   } catch (error) {
     console.error('Error al subir archivo:', error);

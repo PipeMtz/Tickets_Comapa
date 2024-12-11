@@ -61,14 +61,26 @@ ticketRouter.get('/', async (req, res) => {
 });
 
 // Exportar tickets a Excel
-ticketRouter.get('/export', async (req, res) => {
-  const filters = req.query;
+ticketRouter.post('/export', async (req, res) => {
+  console.log('Cuerpo recibido en la ruta:', req.body); // Depuración
   try {
-    await ticketController.exportTicketsToExcel(filters, res);
+    await ticketController.exportTicketsToExcel(req, res); // Pasa `req` y `res`
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+ticketRouter.get('/filtered', async (req, res) => {
+  const filters = req.query;
+  try {
+    const filteredTickets = await ticketController.getFilteredTickets(filters);
+    res.json(filteredTickets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Obtener un ticket por ID
 ticketRouter.get('/:id', async (req, res) => {
@@ -79,6 +91,29 @@ ticketRouter.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Ticket no encontrado' });
     }
     res.status(200).json(ticket);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener attachments de un ticket por ID
+ticketRouter.get('/:id/attachments', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const attachments = await ticketController.getAttachmentsByTicketId(id);
+    res.status(200).json(attachments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}); 
+
+// Obtener tickets por usuario
+ticketRouter.get('/usuario/:id_usuario', async (req, res) => {
+  const { id_usuario } = req.params;
+  console.log('ID de usuario:', id_usuario);
+  try {
+    const tickets = await ticketController.getTicketsByUser(id_usuario);
+    res.status(200).json(tickets);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -96,16 +131,20 @@ ticketRouter.delete('/:id', async (req, res) => {
 });
 
 // Ruta para actualizar un ticket
-ticketRouter.put('/tickets/:id_ticket', async (req, res) => {
+ticketRouter.put('/:id_ticket', async (req, res) => {
   const { id_ticket } = req.params;
-  const { titulo, descripcion, prioridad } = req.body;
+  const { prioridad, estado, id_usuario_asignado } = req.body;
 
+  console.log('Datos recibidos:', req.body);
   try {
-    const result = await updateTicket(id_ticket, { titulo, descripcion, prioridad });
+    const result = await ticketController.updateTicket(id_ticket, prioridad, estado, id_usuario_asignado);
     res.status(200).json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error al actualizar ticket:', err);
+    res.status(500).json({ message: 'Error al actualizar el ticket: ' + err.message });
   }
 });
+
+
 
 export default ticketRouter;

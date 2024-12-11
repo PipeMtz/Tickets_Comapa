@@ -1,6 +1,6 @@
 import express from 'express';
 const usersRouter = express.Router();
-import { getAllUsers, getUserById, updateUser, deleteUser, createUser, getAllUsersWithDetails, updateUserAdmin } from '../controllers/users.controller.js';
+import { getAllUsers, getUserById, updateUser, deleteUser, createUser, getAllUsersWithDetails, updateUserAdmin , getTicketsAbiertosUser} from '../controllers/users.controller.js';
 
 // Ruta para crear un nuevo usuario y asignarle un rol
 usersRouter.post('/', async (req, res) => {
@@ -34,6 +34,17 @@ usersRouter.get('/detalles', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+usersRouter.get('/tickets-abiertos', async (req, res) => {
+  try {
+    const users = await getTicketsAbiertosUser();
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
 
 // Ruta para obtener un usuario por su ID
 usersRouter.get('/:id', async (req, res) => {
